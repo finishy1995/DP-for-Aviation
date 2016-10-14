@@ -25,6 +25,9 @@ const double LONG = 117;
 const double LAT = 33;
 const double COORDINATE[NUM][2] = { 121.4, 31.2, 119.26, 32.23, 119.54, 32.3, 120.18, 31.34, 118.2, 35.03, 119.09, 33.3, 119.1, 34.36, 117.40, 36.12, 118.02, 37.22, 118.03, 36.48, 116.52, 38.18, 117.2, 39.13, 117.21, 38.21, 116.6, 40.1};
 const int ARR[LEVEL] = { 1, 3, 3, 3, 3, 1};
+const double BAN[1][2] = { 119, 36.4};
+const double BANDIS = 100000;
+const double MAXDIS = 5000000;
 
 double coor[NUM][2] = {0};
 double result[NUM] = {0};
@@ -32,7 +35,7 @@ int resultPath[NUM][LEVEL] = {0};
 
 double getS(double latitude)
 {
-    return (A*(1-E_SQUARE)*(FUNCA/COEF*latitude-FUNCB/2*sin(2*latitude)+FUNCC/4*sin(4*latitude)-FUNCD/6*sin(6*latitude)));
+    return (A*(1-E_SQUARE)*(FUNCA/COEF*latitude-FUNCB/2*sin(2*latitude/COEF)+FUNCC/4*sin(4*latitude/COEF)-FUNCD/6*sin(6*latitude/COEF)));
 }
 
 double getX(double latitude)
@@ -42,12 +45,23 @@ double getX(double latitude)
 
 double getY(double longitude, double latitude)
 {
-    return (A*cos(latitude)/sqrt(1-E_SQUARE*sin(latitude)*sin(latitude))*(longitude-LONG)/COEF);
+    return (A*cos(latitude/COEF)/sqrt(1-E_SQUARE*sin(latitude/COEF)*sin(latitude/COEF))*(longitude-LONG)/COEF);
 }
 
 double getDistance(double x1, double y1, double x2, double y2)
 {
     return (sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)));
+}
+
+bool isIntersect(double x, double y, int start, int end)
+{
+    double funca,funcb,funcc,dis;
+    funca = coor[end][1]-coor[start][1];
+    funcb = coor[start][0]-coor[end][0];
+    funcc = coor[end][0]*coor[start][1]-coor[start][0]*coor[end][1];
+    dis = fabs(funca*x+funcb*y+funcc)/sqrt(funca*funca+funcb*funcb);
+    if (dis<=BANDIS) return true;
+    else return false;
 }
 
 void init()
@@ -57,24 +71,17 @@ void init()
     {
         coor[i][0] = getX(COORDINATE[i][1]);
         coor[i][1] = getY(COORDINATE[i][0],COORDINATE[i][1]);
-        //cout<<"x = "<<coor[i][0]<<"  y = "<<coor[i][1]<<endl;
     }
-    //cout<<"x = "<<getX(32)<<" y = "<<getY(121,32)<<endl;
 }
 
 void solve()
 {
-    /*double res = 0;
-    res += getDistance(coor[0][0], coor[0][1], coor[2][0], coor[2][1]);
-    res += getDistance(coor[2][0], coor[2][1], coor[5][0], coor[5][1]);
-    res += getDistance(coor[5][0], coor[5][1], coor[9][0], coor[9][1]);
-    res += getDistance(coor[9][0], coor[9][1], coor[12][0], coor[12][1]);
-    res += getDistance(coor[12][0], coor[12][1], coor[13][0], coor[13][1]);
-    cout<<"result = "<<res<<endl;*/
     int i,j,k,past,now,tmpnum;
-    double tmp;
+    double tmp,banX,banY;
     past = 0;
     now = ARR[0];
+    banX = getX(BAN[0][1]);
+    banY = getY(BAN[0][0], BAN[0][1]);
     
     for(i=1;i<LEVEL;i++)
     {
@@ -85,16 +92,21 @@ void solve()
             for(k=past;k<past+ARR[i-1];k++)
             {
                 tmp = result[k]+getDistance(coor[j][0], coor[j][1], coor[k][0], coor[k][1]);
-                if ((result[j] == 0) || (tmp<result[j])) {
+                if ((!isIntersect(banX, banY, j, k)) && ((result[j] == 0) || (tmp<result[j]))) {
                     result[j] = tmp;
                     tmpnum = k;
                 }
             }
-            for(k=0;k<i-1;k++)
+            if (tmpnum == -1)
             {
-                resultPath[j][k] = resultPath[tmpnum][k];
+                result[j] = MAXDIS;
+            } else {
+                for(k=0;k<i-1;k++)
+                {
+                    resultPath[j][k] = resultPath[tmpnum][k];
+                }
+                resultPath[j][i-1] = tmpnum;
             }
-            resultPath[j][i-1] = tmpnum;
         }
         past += ARR[i-1];
         now += ARR[i];
